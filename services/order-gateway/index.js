@@ -59,7 +59,9 @@ app.post('/api/order', authenticateToken, async (req, res) => {
             quantity
         });
 
-        // (We will add the Kitchen Queue async forward here in Phase 4)
+        // 3. Drop order into the Kitchen Queue (Asynchronous Processing)
+        const orderPayload = JSON.stringify({ student_id: req.user.student_id, item_id });
+        await redisClient.lPush('kitchen_orders', orderPayload);
 
         return res.status(200).json({
             message: "Order successfully verified and routed",
