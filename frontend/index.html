@@ -216,6 +216,9 @@
             currentToken = data.access_token;
             currentStudentId = studentId;
 
+            localStorage.setItem('jwt', data.access_token);
+            localStorage.setItem('student_id', studentId);
+
             document.getElementById('login-section').classList.add('hidden');
             document.getElementById('order-section').classList.remove('hidden');
             document.getElementById('user-display').innerText = studentId;

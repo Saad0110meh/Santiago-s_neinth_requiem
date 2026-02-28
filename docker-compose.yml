@@ -43,21 +43,23 @@ services:
       retries: 10
 
   # ─── MICROSERVICES ──────────────────────────────────────────────────────────
+ # ─── MICROSERVICES ──────────────────────────────────────────────────────────
   identity-provider:
     build: ./services/identity-provider
     container_name: cafeteria-identity
     ports:
       - "3001:3001"
     environment:
-      JWT_SECRET: "devsprint-super-secret-2026"
-      JWT_EXPIRES_IN: "2h"
-      REDIS_URL: "redis://redis:6379"
-      DATABASE_URL: "postgresql://cafuser:cafpass@postgres:5432/cafeteria"
-      PORT: "3001"
+      - DATABASE_URL=postgresql://cafuser:cafpass@postgres:5432/cafeteria
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=devsprint-super-secret-2026
+      - PORT=3001
+      - RATE_LIMIT_WINDOW=60
+      - RATE_LIMIT_MAX=3
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
-    networks: 
+    networks:
       - cafeteria-net
     restart: unless-stopped
 
@@ -67,11 +69,11 @@ services:
     ports:
       - "3000:3000"
     environment:
-      JWT_SECRET: "devsprint-super-secret-2026"
-      REDIS_URL: "redis://redis:6379"
-      STOCK_SERVICE_URL: "http://stock-service:3002"
-      KITCHEN_URL: "http://kitchen-queue:3003"
-      PORT: "3000"
+      - JWT_SECRET=devsprint-super-secret-2026
+      - REDIS_URL=redis://redis:6379
+      - STOCK_SERVICE_URL=http://stock-service:3002
+      - KITCHEN_URL=http://kitchen-queue:3003
+      - PORT=3000
     depends_on:
       redis:             { condition: service_healthy }
       identity-provider: { condition: service_started }
@@ -86,13 +88,12 @@ services:
     ports:
       - "3002:3002"
     environment:
-      DATABASE_URL: "postgresql://cafuser:cafpass@postgres:5432/cafeteria"
-      REDIS_URL: "redis://redis:6379"
-      PORT: "3002"
+      - DATABASE_URL=postgresql://cafuser:cafpass@postgres:5432/cafeteria
+      - REDIS_URL=redis://redis:6379
+      - PORT=3002
     depends_on:
       postgres: { condition: service_healthy }
-      redis:    { condition: service_healthy }
-    networks: 
+    networks:
       - cafeteria-net
     restart: unless-stopped
 
@@ -102,10 +103,10 @@ services:
     ports:
       - "3003:3003"
     environment:
-      REDIS_URL: "redis://redis:6379"
-      NOTIFICATION_URL: "http://notification-hub:3004"
-      STOCK_SERVICE_URL: "http://stock-service:3002"
-      PORT: "3003"
+      - REDIS_URL=redis://redis:6379
+      - NOTIFICATION_URL=http://notification-hub:3004
+      - STOCK_SERVICE_URL=http://stock-service:3002
+      - PORT=3003
     depends_on:
       redis: { condition: service_healthy }
     networks: 
@@ -118,8 +119,8 @@ services:
     ports:
       - "3004:3004"
     environment:
-      REDIS_URL: "redis://redis:6379"
-      PORT: "3004"
+      - REDIS_URL=redis://redis:6379
+      - PORT=3004
     depends_on:
       redis: { condition: service_healthy }
     networks: 
@@ -131,11 +132,7 @@ services:
     build: ./frontend
     container_name: cafeteria-frontend
     ports:
-      # Change to "5173:5173" if using Vite dev server instead of Nginx
-      - "5173:80" 
-    depends_on:
-      - order-gateway
-      - notification-hub
-    networks: 
+      - "8080:80"  # You will access the UI at http://localhost:8080
+    networks:
       - cafeteria-net
-    restart: unless-stopped
+    restart: always

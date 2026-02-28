@@ -1,13 +1,16 @@
-FROM python:3.11-slim
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies first for Docker caching
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies first (better for Docker caching)
+COPY package*.json ./
+RUN npm install
 
-# Copy the application code
+# Copy the rest of the code and build the TypeScript
 COPY . .
+RUN npm run build
 
-# Start the server (matches port 3002 from docker-compose)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3002"]
+EXPOSE 3002
+
+# Run the compiled JavaScript version
+CMD ["npm", "run", "start:prod"]

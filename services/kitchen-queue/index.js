@@ -1,11 +1,13 @@
 const express = require('express');
 const redis = require('redis');
-const axios = require('axios'); // NEW
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
-const REDIS_URL = process.env.REDIS_URL || 'redis://cafeteria-redis:6379';
-const NOTIFICATION_URL = process.env.NOTIFICATION_URL || 'http://cafeteria-notifications:3004'; // NEW
+
+// Corrected Service Names for Docker Network
+const REDIS_URL = process.env.REDIS_URL || 'redis://redis:6379';
+const NOTIFICATION_URL = process.env.NOTIFICATION_URL || 'http://notification-hub:3004';
 
 let redisClient;
 
@@ -24,27 +26,29 @@ async function processQueue() {
             
             if (result) {
                 const order = JSON.parse(result.element);
-                console.log(`[x] KITCHEN: Received Order for Student ${order.student_id}`);
+                const studentId = order.student_id; // Now correctly passed from Gateway!
                 
-                // 1. Notify student that order is In Kitchen
+                console.log(`[x] KITCHEN: Received Order for Student ${studentId}`);
+                
+                // 1. Notify Hub: "In Kitchen"
                 await axios.post(`${NOTIFICATION_URL}/internal/notify`, {
-                    student_id: order.student_id,
+                    student_id: studentId,
                     status: "In Kitchen",
                     message: "Your food is being prepared!"
-                }).catch(err => console.error("Failed to notify hub:", err.message));
+                }).catch(err => console.error("Failed to notify hub (In Kitchen):", err.message));
 
-                // Simulate time-intensive cooking process (3-7s)
-                const cookingTime = Math.floor(Math.random() * (7000 - 3000 + 1) + 3000);
+                // Cooking Simulation
+                const cookingTime = Math.floor(Math.random() * 4000) + 3000;
                 await new Promise(resolve => setTimeout(resolve, cookingTime));
                 
-                console.log(`[v] KITCHEN: Order Ready for Student ${order.student_id}!`);
+                console.log(`[v] KITCHEN: Order Ready for Student ${studentId}!`);
                 
-                // 2. Notify student that order is Ready
+                // 2. Notify Hub: "Ready"
                 await axios.post(`${NOTIFICATION_URL}/internal/notify`, {
-                    student_id: order.student_id,
+                    student_id: studentId,
                     status: "Ready",
                     message: "Your Iftar is ready for pickup!"
-                }).catch(err => console.error("Failed to notify hub:", err.message));
+                }).catch(err => console.error("Failed to notify hub (Ready):", err.message));
             }
         } catch (error) {
             console.error("Queue processing error:", error);
