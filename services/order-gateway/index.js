@@ -2,8 +2,10 @@ const express = require('express');
 const redis = require('redis');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const cors = require('cors');
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
@@ -82,6 +84,17 @@ app.post('/api/order', authenticateToken, async (req, res) => {
 // Observability: Health Endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy', service: 'Order Gateway' });
+});
+
+//Chaos Toggle
+app.post('/api/kill', (req, res) => {
+    console.error("💀 CHAOS INITIATED: Shutting down Gateway...");
+    res.status(200).json({ message: "Gateway going down!" });
+    
+    // Give it 500ms to send the response before literally killing the process
+    setTimeout(() => {
+        process.exit(1); 
+    }, 500);
 });
 
 app.listen(PORT, () => {

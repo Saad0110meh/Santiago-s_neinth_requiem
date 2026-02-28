@@ -3,11 +3,20 @@ import jwt
 import redis
 import psycopg2
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware # NEW IMPORT
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
 
 app = FastAPI(title="IUT Cafeteria Identity Provider")
 
+# NEW: Allow browsers to talk to this API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"], # Allows all methods (GET, POST, OPTIONS, etc.)
+    allow_headers=["*"], # Allows all headers
+)
 # Load environment variables (Passed from docker-compose.yml)
 JWT_SECRET = os.getenv("JWT_SECRET", "devsprint-super-secret-2026")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")

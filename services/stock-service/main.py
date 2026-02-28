@@ -2,9 +2,18 @@ import os
 import redis
 import psycopg2
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
+#Allow the Admin Dashboard to ping the health endpoint
 app = FastAPI(title="IUT Cafeteria Stock Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://cafuser:cafpass@localhost:5432/cafeteria")
