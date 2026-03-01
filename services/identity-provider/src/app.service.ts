@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ServiceUnavailableException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Client } from 'pg';
 
@@ -12,6 +12,16 @@ export class AppService {
       connectionString: process.env.DATABASE_URL,
     });
     this.dbClient.connect().catch(err => console.error('Identity DB Connection Error:', err));
+  }
+
+  async getHealth() {
+    try {
+      // Simple query to ensure DB is responsive
+      await this.dbClient.query('SELECT 1');
+      return { status: 'healthy', service: 'Identity Provider', db: 'connected' };
+    } catch (error) {
+      throw new ServiceUnavailableException('Database dependency is unreachable');
+    }
   }
 
   async login(student_id: string) {

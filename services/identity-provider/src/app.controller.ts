@@ -7,8 +7,8 @@ export class AppController {
 
   // This is what the admin.html dashboard is looking for!
   @Get('health')
-  getHealth() {
-    return { status: 'healthy', service: 'Identity Provider' };
+  async getHealth() {
+    return this.appService.getHealth();
   }
 
   @Post('login') 
