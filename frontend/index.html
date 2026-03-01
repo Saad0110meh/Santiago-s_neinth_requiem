@@ -210,7 +210,12 @@
                 body: JSON.stringify({ student_id: studentId })
             });
 
-            if (!response.ok) throw new Error('Invalid ID or Rate Limit Exceeded (3/min)');
+            // if (!response.ok) throw new Error('Invalid ID or Rate Limit Exceeded (3/min)');
+            if (response.status === 429) {
+                throw new Error('Too many attempts! Please wait a minute.');
+            } else if (response.status === 401) {
+                throw new Error('Wrong ID entered.');
+            }
             
             const data = await response.json();
             currentToken = data.access_token;
