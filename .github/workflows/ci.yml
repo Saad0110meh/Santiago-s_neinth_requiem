@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [stock-service, kitchen-queue, identity-provider, order-gateway]
+        service: [stock-service, kitchen-queue, identity-provider, order-gateway, notification-hub]
 
     steps:
     - name: Checkout Code
