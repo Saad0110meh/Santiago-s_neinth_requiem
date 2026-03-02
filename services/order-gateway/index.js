@@ -120,6 +120,38 @@ app.post('/api/order', authenticateToken, async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------
+// STOCK MANAGEMENT PROXY
+// ---------------------------------------------------------
+app.get('/api/stock', authenticateToken, async (req, res) => {
+    try {
+        const response = await axios.get(`${STOCK_SERVICE_URL}/stock`);
+        res.json(response.data);
+    } catch (e) {
+        res.status(e.response?.status || 500).json(e.response?.data || { error: "Failed to fetch stock list" });
+    }
+});
+
+app.get('/api/stock/:id', authenticateToken, async (req, res) => {
+    try {
+        const response = await axios.get(`${STOCK_SERVICE_URL}/stock/${req.params.id}`);
+        res.json(response.data);
+    } catch (e) {
+        res.status(e.response?.status || 500).json(e.response?.data || { error: "Failed to fetch stock" });
+    }
+});
+
+app.post('/api/stock/increase', authenticateToken, async (req, res) => {
+    try {
+        const response = await axios.post(`${STOCK_SERVICE_URL}/stock/increase`, req.body);
+        // Invalidate cache so next order gets fresh data
+        await redisClient.del(`stock:${req.body.item_id}`);
+        res.json(response.data);
+    } catch (e) {
+        res.status(e.response?.status || 500).json(e.response?.data || { error: "Failed to increase stock" });
+    }
+});
+
 // Metrics Endpoint
 app.get('/metrics', (req, res) => {
     const avg_latency = metrics.total_orders > 0 

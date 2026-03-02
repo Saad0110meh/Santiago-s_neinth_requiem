@@ -17,8 +17,8 @@ describe('Kitchen Queue Service', () => {
         const res = await request(app).get('/metrics');
         expect(res.statusCode).toEqual(200);
         expect(res.body).toHaveProperty('total_orders');
-        expect(res.body).toHaveProperty('active_orders');
-        expect(res.body).toHaveProperty('burned_meals');
+        expect(res.body).toHaveProperty('order_processing_count');
+        expect(res.body).toHaveProperty('queue_occupancy');
     });
 
     it('should return 503 for health check when redis is not initialized (test mode)', async () => {

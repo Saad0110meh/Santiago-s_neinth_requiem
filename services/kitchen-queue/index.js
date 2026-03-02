@@ -14,12 +14,14 @@ const NOTIFICATION_URL = process.env.NOTIFICATION_URL || 'http://notification-hu
 // Metrics Storage
 const metrics = {
     total_orders: 0,
-    active_orders: 0,
+    active_orders: 0, // Now represents concurrent processing count
     failures: 0,
-    total_cooking_time: 0,
-    burned_meals: 0 // Creative Metric: Randomly incremented to simulate kitchen mishaps
+    total_processing_time: 0,
+    queue_occupancy: 0 // Redis Queue Length
 };
 
+const MAX_CONCURRENT_ORDERS = 50; // Limit processing capacity
+const MAX_QUEUE_CAPACITY = 50; // For percentage calculation
 let redisClient;
 
 async function connectRedis() {
@@ -33,66 +35,81 @@ async function connectRedis() {
 async function processQueue() {
     while (true) {
         try {
-            metrics.active_orders = 0; // Waiting state
-            const result = await redisClient.blPop('kitchen_orders', 0);
-            metrics.active_orders = 1; // Cooking state
+            // 1. Update Queue Occupancy Metric
+            const len = await redisClient.lLen('kitchen_orders');
+            metrics.queue_occupancy = Math.min(Math.round((len / MAX_QUEUE_CAPACITY) * 100), 100);
+
+            // 2. Concurrency Control: If full, wait before taking new orders
+            if (metrics.active_orders >= MAX_CONCURRENT_ORDERS) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                continue;
+            }
+
+            // 3. Fetch Order (Blocking with timeout to allow loop to re-check concurrency)
+            const result = await redisClient.blPop('kitchen_orders', 1);
             
             if (result) {
-                const start = Date.now();
+                metrics.active_orders++;
                 const order = JSON.parse(result.element);
-                const studentId = order.student_id; // Now correctly passed from Gateway!
                 
-                console.log(`[x] KITCHEN: Received Order for Student ${studentId}`);
-                
-                // 1. Notify Hub: "In Kitchen"
-                await axios.post(`${NOTIFICATION_URL}/internal/notify`, {
-                    student_id: studentId,
-                    status: "In Kitchen",
-                    message: "Your food is being prepared!"
-                }).catch(err => console.error("Failed to notify hub (In Kitchen):", err.message));
-
-                // Cooking Simulation
-                const cookingTime = Math.floor(Math.random() * 4000) + 3000;
-                await new Promise(resolve => setTimeout(resolve, cookingTime));
-                
-                // Metrics Update
-                const duration = Date.now() - start;
-                metrics.total_orders++;
-                metrics.total_cooking_time += duration;
-
-                // Creative Metric: 5% chance to burn a meal
-                if (Math.random() < 0.05) {
-                    metrics.burned_meals++;
-                }
-
-                console.log(`[v] KITCHEN: Order Ready for Student ${studentId}!`);
-                
-                // 2. Notify Hub: "Ready"
-                await axios.post(`${NOTIFICATION_URL}/internal/notify`, {
-                    student_id: studentId,
-                    status: "Ready",
-                    message: "Your Iftar is ready for pickup!"
-                }).catch(err => console.error("Failed to notify hub (Ready):", err.message));
+                // Process asynchronously to allow concurrency
+                processOrder(order).finally(() => {
+                    metrics.active_orders--;
+                });
             }
         } catch (error) {
-            metrics.failures++;
             console.error("Queue processing error:", error);
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
 }
 
+async function processOrder(order) {
+    const start = Date.now();
+    const studentId = order.student_id;
+    console.log(`[x] KITCHEN: Processing Prepackaged Order for Student ${studentId}`);
+
+    try {
+        // 1. Notify Hub: "Processing"
+        await axios.post(`${NOTIFICATION_URL}/internal/notify`, {
+            student_id: studentId,
+            status: "Processing",
+            message: "Your prepackaged meal is being retrieved."
+        }).catch(err => console.error("Failed to notify hub (Processing):", err.message));
+
+        // Simulation: Retrieval time (faster than cooking)
+        const processingTime = Math.floor(Math.random() * 2000) + 1000; 
+        await new Promise(resolve => setTimeout(resolve, processingTime));
+
+        // Metrics Update
+        metrics.total_orders++;
+        metrics.total_processing_time += (Date.now() - start);
+
+        console.log(`[v] KITCHEN: Order Ready for Student ${studentId}!`);
+
+        // 2. Notify Hub: "Ready"
+        await axios.post(`${NOTIFICATION_URL}/internal/notify`, {
+            student_id: studentId,
+            status: "Ready",
+            message: "Your Iftar is ready for pickup!"
+        });
+    } catch (err) {
+        metrics.failures++;
+        console.error("Order processing failed:", err.message);
+    }
+}
+
 app.get('/metrics', (req, res) => {
     const avg_time = metrics.total_orders > 0 
-        ? metrics.total_cooking_time / metrics.total_orders 
+        ? metrics.total_processing_time / metrics.total_orders 
         : 0;
 
     res.json({
         total_orders: metrics.total_orders,
-        active_orders: metrics.active_orders,
+        order_processing_count: metrics.active_orders,
+        queue_occupancy: metrics.queue_occupancy,
         failures: metrics.failures,
-        burned_meals: metrics.burned_meals,
-        average_cooking_time_ms: parseFloat(avg_time.toFixed(2))
+        average_processing_time_ms: parseFloat(avg_time.toFixed(2))
     });
 });
 

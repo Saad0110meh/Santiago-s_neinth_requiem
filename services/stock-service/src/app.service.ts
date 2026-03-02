@@ -50,6 +50,29 @@ export class AppService {
     };
   }
 
+  async getAllStock() {
+    const res = await this.dbClient.query('SELECT * FROM menu_items ORDER BY id ASC');
+    return res.rows;
+  }
+
+  async getStock(item_id: any) {
+    const id = parseInt(item_id, 10);
+    const res = await this.dbClient.query('SELECT stock_quantity FROM menu_items WHERE id = $1', [id]);
+    if (res.rowCount === 0) throw new NotFoundException('Item not found');
+    return { item_id: id, stock: res.rows[0].stock_quantity };
+  }
+
+  async increaseStock(item_id: any, quantity: any) {
+    const id = parseInt(item_id, 10);
+    const qty = parseInt(quantity, 10);
+    const res = await this.dbClient.query(
+      'UPDATE menu_items SET stock_quantity = stock_quantity + $1 WHERE id = $2 RETURNING stock_quantity',
+      [qty, id]
+    );
+    if (res.rowCount === 0) throw new NotFoundException('Item not found');
+    return { success: true, new_stock: res.rows[0].stock_quantity };
+  }
+
   async checkAndReduceStock(item_id: any, quantity: any, order_id?: string) {
     const start = Date.now(); // Start timer for latency tracking
     // Force conversion to numbers to avoid "operator does not exist" errors

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param } from '@nestjs/common';
 import { AppService } from './app.service';
 
 @Controller() // <--- Remove 'stock' from here
@@ -13,6 +13,21 @@ export class AppController {
   @Get('metrics')
   async getMetrics() {
     return this.appService.getMetrics();
+  }
+
+  @Get('stock')
+  async getAllStock() {
+    return this.appService.getAllStock();
+  }
+
+  @Get('stock/:id')
+  async getStock(@Param('id') id: number) {
+    return this.appService.getStock(id);
+  }
+
+  @Post('stock/increase')
+  async increaseStock(@Body() body: { item_id: number, quantity: number }) {
+    return this.appService.increaseStock(body.item_id, body.quantity);
   }
 
   // This handles http://stock-service:3002/stock/reduce
