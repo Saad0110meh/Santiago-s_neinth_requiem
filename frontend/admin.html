@@ -112,7 +112,10 @@
             </div>
             <div class="metrics">
                 <div>Port: 3002</div>
-                <div>DB Locks: Active</div>
+                <div>Orders: <span id="stock-orders">--</span></div>
+                <div>Latency: <span id="stock-latency">--</span></div>
+                <div>Failures: <span id="stock-failures">--</span></div>
+                <canvas id="stock-latency-chart" width="220" height="50" style="margin-top: 10px; background: #0f172a; border-radius: 4px; border: 1px solid #334155;"></canvas>
             </div>
         </div>
     </div>
@@ -126,9 +129,9 @@
         const services = [
             { id: 'gateway', url: 'http://localhost:3000/health' },
             { id: 'identity', url: 'http://localhost:3001/health' },
-            // Note: We need to add CORS to Stock and Kitchen in the backend before the browser can ping them!
-            // { id: 'stock', url: 'http://localhost:3002/health' } 
+            { id: 'stock', url: 'http://localhost:3002/health' }
         ];
+        const latencyHistory = new Array(30).fill(0);
 
         async function checkHealth() {
             for (const service of services) {
@@ -149,6 +152,51 @@
             }
         }
 
+        async function updateMetrics() {
+            // Fetch Stock Service Metrics
+            try {
+                const res = await fetch('http://localhost:3002/metrics');
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('stock-orders').innerText = data.total_orders;
+                    document.getElementById('stock-latency').innerText = data.average_latency_ms + 'ms';
+                    document.getElementById('stock-failures').innerText = data.failures;
+                    
+                    latencyHistory.push(data.average_latency_ms || 0);
+                    if (latencyHistory.length > 30) latencyHistory.shift();
+                    drawLatencyChart();
+                }
+            } catch (e) {
+                // Fail silently if service is down (Health check handles the UI alert)
+            }
+        }
+
+        function drawLatencyChart() {
+            const canvas = document.getElementById('stock-latency-chart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+            
+            // Draw Graph Line
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            // Auto-scale max value (min 10ms to prevent flatline at 0)
+            const maxVal = Math.max(...latencyHistory, 10) * 1.2; 
+
+            latencyHistory.forEach((val, i) => {
+                const x = (i / (latencyHistory.length - 1)) * w;
+                const y = h - ((val / maxVal) * h);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
         async function triggerChaos(serviceName) {
             if (serviceName === 'gateway') {
                 const btn = document.querySelector('.chaos-btn');
@@ -164,7 +212,9 @@
 
         // Poll health every 3 seconds
         setInterval(checkHealth, 3000);
+        setInterval(updateMetrics, 3000);
         checkHealth();
+        updateMetrics();
     </script>
 
 </body>
