@@ -185,9 +185,11 @@
     <div id="order-section" class="hidden">
         <p>Logged in as: <strong id="user-display" style="color: var(--primary);"></strong></p>
         
-        <div class="menu-card">
-            <h3>Beef Tehari</h3>
-            <p>🍛 Ramadan Special</p>
+        <div class="menu-card" style="text-align: center;">
+            <h3 style="margin-bottom: 15px;">Select Your Iftar Meal</h3>
+            <select id="menu-select" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d1d5db; margin-bottom: 15px; font-family: 'Poppins', sans-serif;">
+                <option>Loading menu...</option>
+            </select>
             <button id="order-btn" onclick="placeOrder()">Place Order</button>
         </div>
     </div>
@@ -254,11 +256,35 @@
             document.getElementById('login-section').classList.add('hidden');
             document.getElementById('order-section').classList.remove('hidden');
             document.getElementById('user-display').innerText = studentId;
+            loadMenuItems();
 
         } catch (err) {
             errorDiv.innerText = err.message;
             btn.innerText = 'Authenticate';
             btn.disabled = false;
+        }
+    }
+
+    async function loadMenuItems() {
+        const select = document.getElementById('menu-select');
+        try {
+            const res = await fetch('http://localhost:3000/api/stock', {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            if (!res.ok) throw new Error('Failed to load menu');
+
+            const items = await res.json();
+            select.innerHTML = ''; // Clear loading text
+            items.forEach(item => {
+                if (item.stock_quantity > 0 && item.is_available) {
+                    const option = document.createElement('option');
+                    option.value = item.id;
+                    option.innerText = `${item.name} - ${item.price} BDT`;
+                    select.appendChild(option);
+                }
+            });
+        } catch (e) {
+            select.innerHTML = `<option>${e.message}</option>`;
         }
     }
 
@@ -270,6 +296,7 @@
         document.getElementById('status-section').classList.remove('hidden');
         updateTracker('Pending', 'Sending request to gateway...');
 
+        const selectedItemId = document.getElementById('menu-select').value;
         try {
             const response = await fetch('http://localhost:3000/api/order', {
                 method: 'POST',
@@ -277,7 +304,7 @@
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${currentToken}`
                 },
-                body: JSON.stringify({ item_id: 1, quantity: 1 })
+                body: JSON.stringify({ item_id: selectedItemId, quantity: 1 })
             });
 
             if (!response.ok) {

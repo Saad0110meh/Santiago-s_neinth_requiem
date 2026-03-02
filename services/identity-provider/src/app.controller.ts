@@ -11,6 +11,11 @@ export class AppController {
     return this.appService.getHealth();
   }
 
+  @Get('metrics')
+  async getMetrics() {
+    return this.appService.getMetrics();
+  }
+
   @Post('login') 
   @HttpCode(200)
   async login(@Body() body: { student_id: string }, @Ip() ip: string) {

@@ -35,4 +35,5 @@ INSERT INTO menu_items (name, description, price, stock_quantity) VALUES
 -- Add a test admin user
 INSERT INTO users (student_id, name, role) VALUES
 ('ADMIN001', 'Cafeteria Manager', 'admin'),
-('210041100', 'Test Student', 'student');
+('210041100', 'Test Student', 'student'),
+('ADMIN002', 'Head Chef', 'admin');

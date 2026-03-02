@@ -8,6 +8,14 @@ export class AppService {
   private dbClient: Client;
   private redisClient;
 
+  // Metrics Storage
+  private metrics = {
+    total_requests: 0,
+    successful_logins: 0,
+    failed_logins: 0,
+    rate_limited_requests: 0
+  };
+
   constructor(private jwtService: JwtService) {
     // Initialize Database Client
     this.dbClient = new Client({
@@ -31,7 +39,13 @@ export class AppService {
     }
   }
 
+  async getMetrics() {
+    return this.metrics;
+  }
+
   async login(student_id: string, ip: string) {
+    this.metrics.total_requests++;
+
     // 0. Rate Limiting Logic (3 attempts per minute)
     const key = `login_attempts:${ip}`;
     const attempts = await this.redisClient.incr(key);
@@ -41,6 +55,7 @@ export class AppService {
     }
 
     if (attempts > 3) {
+      this.metrics.rate_limited_requests++;
       throw new HttpException('Too many attempts', HttpStatus.TOO_MANY_REQUESTS);
     }
 
@@ -51,10 +66,15 @@ export class AppService {
     );
 
     if (res.rows.length === 0) {
+      this.metrics.failed_logins++;
       throw new UnauthorizedException('Wrong ID');
     }
 
     const user = res.rows[0];
+
+    // Reset rate limit on success
+    await this.redisClient.del(key);
+    this.metrics.successful_logins++;
 
     // 2. Generate the JWT
     const payload = { 
