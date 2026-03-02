@@ -3,6 +3,7 @@ const redis = require('redis');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const cors = require('cors');
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors({ origin: 'http://localhost:8080' }));
@@ -14,6 +15,17 @@ const JWT_SECRET = process.env.JWT_SECRET || 'devsprint-super-secret-2026';
 // Updated to match your Docker Service Names
 const REDIS_URL = process.env.REDIS_URL || 'redis://redis:6379';
 const STOCK_SERVICE_URL = process.env.STOCK_SERVICE_URL || 'http://stock-service:3002';
+
+// Metrics Storage
+const metrics = {
+    total_orders: 0,
+    cache_rejections: 0,
+    forwarded_to_stock: 0,
+    failures: 0,
+    total_latency: 0,
+    redis_latency: 0,
+    redis_ops: 0
+};
 
 let redisClient;
 
@@ -47,19 +59,29 @@ const authenticateToken = (req, res, next) => {
 // ---------------------------------------------------------
 app.post('/api/order', authenticateToken, async (req, res) => {
     const { item_id, quantity } = req.body;
+    const orderId = crypto.randomUUID();
+    const start = Date.now();
 
     try {
         // 1. High-Speed Cache Check
+        const redisStart = Date.now();
         const stockStr = await redisClient.get(`stock:${item_id}`);
+        metrics.redis_latency += (Date.now() - redisStart);
+        metrics.redis_ops++;
         
         if (stockStr !== null && parseInt(stockStr) < quantity) {
+            metrics.total_orders++;
+            metrics.cache_rejections++;
+            metrics.total_latency += (Date.now() - start);
             return res.status(400).json({ detail: "Order rejected instantly by cache: Insufficient stock." });
         }
 
         // 2. Forward to Stock Service
+        metrics.forwarded_to_stock++;
         const stockResponse = await axios.post(`${STOCK_SERVICE_URL}/stock/reduce`, {
             item_id: item_id,
-            quantity: quantity
+            quantity: quantity,
+            order_id: orderId
         });
 
         // 3. FIX: Safely extract the student ID from the token
@@ -68,30 +90,65 @@ app.post('/api/order', authenticateToken, async (req, res) => {
 
         // 4. Drop order into the Kitchen Queue
         const orderPayload = JSON.stringify({ 
+            order_id: orderId,
             student_id: studentId, 
             item_id: item_id 
         });
         
         await redisClient.lPush('kitchen_orders', orderPayload);
 
+        metrics.total_orders++;
+        metrics.total_latency += (Date.now() - start);
         return res.status(200).json({
             message: "Order successfully verified and routed",
+            order_id: orderId,
             student: studentId,
             stock_status: stockResponse.data
         });
 
     } catch (error) {
+        metrics.total_orders++;
+        metrics.total_latency += (Date.now() - start);
+
         if (error.response && error.response.status === 400) {
             return res.status(400).json(error.response.data);
         }
+        
+        metrics.failures++; // Count 500s/timeouts as system failures
         console.error("Gateway routing error:", error.message);
         return res.status(500).json({ detail: "Internal Gateway Error" });
     }
 });
 
+// Metrics Endpoint
+app.get('/metrics', (req, res) => {
+    const avg_latency = metrics.total_orders > 0 
+        ? metrics.total_latency / metrics.total_orders 
+        : 0;
+    
+    const avg_redis_latency = metrics.redis_ops > 0
+        ? metrics.redis_latency / metrics.redis_ops
+        : 0;
+    
+    res.json({
+        total_orders: metrics.total_orders,
+        cache_rejections: metrics.cache_rejections,
+        forwarded_to_stock: metrics.forwarded_to_stock,
+        failures: metrics.failures,
+        average_latency_ms: parseFloat(avg_latency.toFixed(2)),
+        average_redis_latency_ms: parseFloat(avg_redis_latency.toFixed(2))
+    });
+});
+
 // Health Endpoint
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'healthy', service: 'Order Gateway' });
+app.get('/health', async (req, res) => {
+    try {
+        if (!redisClient || !redisClient.isOpen) throw new Error('Redis connection lost');
+        await redisClient.ping();
+        res.status(200).json({ status: 'healthy', service: 'Order Gateway', redis: 'connected' });
+    } catch (error) {
+        res.status(503).json({ status: 'unhealthy', service: 'Order Gateway', error: error.message });
+    }
 });
 
 // Chaos Toggle
@@ -103,6 +160,10 @@ app.post('/api/kill', (req, res) => {
     }, 500);
 });
 
-app.listen(PORT, () => {
-    console.log(`Order Gateway running on port ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Order Gateway running on port ${PORT}`);
+    });
+}
+
+module.exports = app;
