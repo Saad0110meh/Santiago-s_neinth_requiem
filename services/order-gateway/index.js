@@ -16,6 +16,17 @@ const JWT_SECRET = process.env.JWT_SECRET || 'devsprint-super-secret-2026';
 const REDIS_URL = process.env.REDIS_URL || 'redis://redis:6379';
 const STOCK_SERVICE_URL = process.env.STOCK_SERVICE_URL || 'http://stock-service:3002';
 
+// Chaos State
+let isKilled = false;
+
+// Chaos Middleware: Blocks requests when "killed"
+app.use((req, res, next) => {
+    if (isKilled && !req.path.includes('/api/revive') && !req.path.includes('/health')) {
+        return res.status(503).json({ detail: "Service Unavailable (Chaos Mode)" });
+    }
+    next();
+});
+
 // Metrics Storage
 const metrics = {
     total_orders: 0,
@@ -175,6 +186,7 @@ app.get('/metrics', (req, res) => {
 // Health Endpoint
 app.get('/health', async (req, res) => {
     try {
+        if (isKilled) throw new Error('Service manually killed via Chaos Switch');
         if (!redisClient || !redisClient.isOpen) throw new Error('Redis connection lost');
         await redisClient.ping();
         res.status(200).json({ status: 'healthy', service: 'Order Gateway', redis: 'connected' });
@@ -185,11 +197,15 @@ app.get('/health', async (req, res) => {
 
 // Chaos Toggle
 app.post('/api/kill', authenticateToken, (req, res) => {
-    console.error("💀 CHAOS INITIATED: Shutting down Gateway...");
-    res.status(200).json({ message: "Gateway going down!" });
-    setTimeout(() => {
-        process.exit(1); 
-    }, 500);
+    console.error("💀 CHAOS INITIATED: Gateway entering broken state...");
+    isKilled = true;
+    res.status(200).json({ message: "Gateway is now Killed!" });
+});
+
+app.post('/api/revive', authenticateToken, (req, res) => {
+    console.log("✨ CHAOS RESOLVED: Gateway recovering...");
+    isKilled = false;
+    res.status(200).json({ message: "Gateway is back online!" });
 });
 
 if (require.main === module) {

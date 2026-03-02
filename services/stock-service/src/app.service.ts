@@ -4,6 +4,7 @@ import { Client } from 'pg';
 @Injectable()
 export class AppService {
   private dbClient: Client;
+  private isKilled = false;
 
   // Metrics Storage
   private metrics = {
@@ -31,6 +32,7 @@ export class AppService {
 
   async getHealth() {
     try {
+      if (this.isKilled) throw new Error('Service manually killed');
       await this.dbClient.query('SELECT 1');
       return { status: 'healthy', service: 'Stock Service', db: 'connected' };
     } catch (error) {
@@ -74,6 +76,8 @@ export class AppService {
   }
 
   async checkAndReduceStock(item_id: any, quantity: any, order_id?: string) {
+    if (this.isKilled) throw new ServiceUnavailableException('Stock Service is down (Chaos)');
+
     const start = Date.now(); // Start timer for latency tracking
     // Force conversion to numbers to avoid "operator does not exist" errors
     const id = parseInt(item_id, 10);
@@ -131,11 +135,14 @@ export class AppService {
   }
 
   kill() {
-    console.error("💀 CHAOS INITIATED: Shutting down Stock Service...");
-    // Delay slightly to allow the response to be sent back to the Admin UI
-    setTimeout(() => {
-      process.exit(1);
-    }, 500);
-    return { message: "Stock Service going down!" };
+    console.error("💀 CHAOS INITIATED: Breaking Stock Service...");
+    this.isKilled = true;
+    return { message: "Stock Service Killed!" };
+  }
+
+  revive() {
+    console.log("✨ CHAOS RESOLVED: Fixing Stock Service...");
+    this.isKilled = false;
+    return { message: "Stock Service fixed!" };
   }
 }

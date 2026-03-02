@@ -178,6 +178,12 @@
             transition: background 0.3s;
         }
         .chaos-btn:hover { background-color: #dc2626; }
+        
+        .revive-btn {
+            background-color: #10b981;
+            margin-left: 10px;
+        }
+        .revive-btn:hover { background-color: #059669; }
 
         /* Notification Panel Styles */
         .notification-panel {
@@ -354,6 +360,7 @@
                         <span style="color:#3b82f6">● Forwarded to Stock</span>
                     </div>
                     <button class="chaos-btn" onclick="triggerChaos('gateway')">☠️ KILL GATEWAY</button>
+                    <button class="chaos-btn revive-btn" onclick="reviveService('gateway')">✨ REVIVE</button>
                 `;
             } else if (selectedServiceId === 'stock') {
                 container.innerHTML = `
@@ -365,6 +372,7 @@
                     <canvas id="stock-chart" width="600" height="175"></canvas>
                     <div style="text-align:center; margin-top:10px; font-size:12px; color:#10b981">● Processing Latency (ms)</div>
                     <button class="chaos-btn" onclick="triggerChaos('stock')">☠️ KILL STOCK SERVICE</button>
+                    <button class="chaos-btn revive-btn" onclick="reviveService('stock')">✨ REVIVE</button>
                 `;
             } else if (selectedServiceId === 'identity') {
               container.innerHTML = `
@@ -387,6 +395,7 @@
                     <canvas id="kitchen-chart" width="600" height="175"></canvas>
                     <div style="text-align:center; margin-top:10px; font-size:12px; color:#f59e0b">● Processing Duration (ms)</div>
                     <button class="chaos-btn" onclick="triggerChaos('kitchen')">☠️ KILL KITCHEN QUEUE</button>
+                    <button class="chaos-btn revive-btn" onclick="reviveService('kitchen')">✨ REVIVE</button>
                 `;
             } else if (selectedServiceId === 'notification') {
                 container.innerHTML = `
@@ -602,6 +611,26 @@
                 if(btn) btn.innerText = "💀 SERVICE DEAD";
             }
             
+            setTimeout(checkHealth, 1000);
+        }
+
+        async function reviveService(serviceName) {
+            const service = services.find(s => s.id === serviceName);
+            if (!service) return;
+
+            const baseUrl = service.url.replace('/health', '');
+            const btn = document.querySelector('.revive-btn');
+            if(btn) btn.innerText = "✨ REVIVING...";
+
+            try {
+                await fetch(`${baseUrl}/api/revive`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                if(btn) btn.innerText = "✨ REVIVE";
+            } catch (e) {
+                console.log(`Service ${serviceName} revive failed.`);
+            }
             setTimeout(checkHealth, 1000);
         }
 

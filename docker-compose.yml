@@ -61,7 +61,7 @@ services:
       redis:    { condition: service_healthy }
     networks:
       - cafeteria-net
-    restart: "no"
+    restart: unless-stopped
 
   order-gateway:
     build: ./services/order-gateway
@@ -80,7 +80,7 @@ services:
       stock-service:     { condition: service_started }
     networks: 
       - cafeteria-net
-    restart: "no"
+    restart: unless-stopped
 
   stock-service:
     build: ./services/stock-service
@@ -95,7 +95,7 @@ services:
       postgres: { condition: service_healthy }
     networks:
       - cafeteria-net
-    restart: "no"
+    restart: unless-stopped
 
   kitchen-queue:
     build: ./services/kitchen-queue
@@ -112,7 +112,7 @@ services:
       redis: { condition: service_healthy }
     networks: 
       - cafeteria-net
-    restart: "no"
+    restart: unless-stopped
 
   notification-hub:
     build: ./services/notification-hub
@@ -126,7 +126,7 @@ services:
       redis: { condition: service_healthy }
     networks: 
       - cafeteria-net
-    restart: "no"
+    restart: unless-stopped
 
   # ─── FRONTEND ───────────────────────────────────────────────────────────────
   frontend:

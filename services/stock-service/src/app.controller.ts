@@ -47,4 +47,9 @@ export class AppController {
   kill() {
     return this.appService.kill();
   }
+
+  @Post('api/revive')
+  revive() {
+    return this.appService.revive();
+  }
 }

@@ -24,6 +24,7 @@ const metrics = {
 const MAX_CONCURRENT_ORDERS = 50; // Limit processing capacity
 const MAX_QUEUE_CAPACITY = 50; // For percentage calculation
 let redisClient;
+let isKilled = false;
 
 async function connectRedis() {
     redisClient = redis.createClient({ url: REDIS_URL });
@@ -36,6 +37,11 @@ async function connectRedis() {
 
 async function processQueue() {
     while (true) {
+        if (isKilled) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+        }
+
         try {
             // 1. Update Queue Occupancy Metric
             const len = await redisClient.lLen('kitchen_orders');
@@ -121,6 +127,7 @@ app.get('/metrics', (req, res) => {
 
 app.get('/health', async (req, res) => {
     try {
+        if (isKilled) throw new Error('Service manually killed via Chaos Switch');
         if (!redisClient || !redisClient.isOpen) throw new Error('Redis connection lost');
         await redisClient.ping();
         res.status(200).json({ status: 'healthy', service: 'Kitchen Queue', redis: 'connected' });
@@ -130,11 +137,15 @@ app.get('/health', async (req, res) => {
 });
 
 app.post('/api/kill', (req, res) => {
-    console.error("💀 CHAOS INITIATED: Shutting down Kitchen Queue...");
-    res.status(200).json({ message: "Kitchen Queue going down!" });
-    setTimeout(() => {
-        process.exit(1);
-    }, 500);
+    console.error("💀 CHAOS INITIATED: Pausing Kitchen Queue...");
+    isKilled = true;
+    res.status(200).json({ message: "Kitchen Queue Sevice Killed!" });
+});
+
+app.post('/api/revive', (req, res) => {
+    console.log("✨ CHAOS RESOLVED: Resuming Kitchen Queue...");
+    isKilled = false;
+    res.status(200).json({ message: "Kitchen Queue resumed!" });
 });
 
 if (require.main === module) {
