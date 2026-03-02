@@ -74,7 +74,9 @@ async function processOrder(order) {
         await axios.post(`${NOTIFICATION_URL}/internal/notify`, {
             student_id: studentId,
             status: "Processing",
-            message: "Your prepackaged meal is being retrieved."
+            message: "Your prepackaged meal is being retrieved.",
+            order_id: order.order_id,
+            item_id: order.item_id
         }).catch(err => console.error("Failed to notify hub (Processing):", err.message));
 
         // Simulation: Retrieval time (faster than cooking)
@@ -91,7 +93,9 @@ async function processOrder(order) {
         await axios.post(`${NOTIFICATION_URL}/internal/notify`, {
             student_id: studentId,
             status: "Ready",
-            message: "Your Iftar is ready for pickup!"
+            message: "Your Iftar is ready for pickup!",
+            order_id: order.order_id,
+            item_id: order.item_id
         });
     } catch (err) {
         metrics.failures++;

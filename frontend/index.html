@@ -143,6 +143,31 @@
         /* Dynamic classes applied via JS */
         .bg-kitchen { background-color: #3b82f6 !important; }
         .bg-ready { background-color: #10b981 !important; animation: none !important; }
+
+        /* Toast Notification Styles */
+        .toast {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+            border-left: 5px solid var(--primary);
+            min-width: 250px;
+            pointer-events: auto;
+        }
+        .toast.error { border-left-color: #ef4444; }
+        .toast-icon { font-size: 20px; margin-right: 12px; }
+        .toast-content { flex-grow: 1; text-align: left; }
+        .toast-title { font-weight: 600; font-size: 14px; margin-bottom: 2px; color: #1f2937; }
+        .toast-msg { font-size: 12px; color: #6b7280; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -162,7 +187,7 @@
         
         <div class="menu-card">
             <h3>Beef Tehari</h3>
-            <p>🌶️ Ramadan Special</p>
+            <p>🍛 Ramadan Special</p>
             <button id="order-btn" onclick="placeOrder()">Place Order</button>
         </div>
     </div>
@@ -179,6 +204,8 @@
     </div>
 </div>
 
+<div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; pointer-events: none;"></div>
+
 <script>
     let currentToken = '';
     let currentStudentId = '';
@@ -191,6 +218,7 @@
     socket.on('order_update', (data) => {
         if (data.student_id === currentStudentId) {
             updateTracker(data.status, data.message);
+            showToast(data.status, data.message, data.status === 'Failed' ? 'error' : 'success');
         }
     });
 
@@ -210,7 +238,6 @@
                 body: JSON.stringify({ student_id: studentId })
             });
 
-            // if (!response.ok) throw new Error('Invalid ID or Rate Limit Exceeded (3/min)');
             if (response.status === 429) {
                 throw new Error('Too many attempts! Please wait a minute.');
             } else if (response.status === 401) {
@@ -287,6 +314,36 @@
         const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
         logsDiv.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> > ${status.toUpperCase()}</div>`;
         logsDiv.scrollTop = logsDiv.scrollHeight; // Auto-scroll terminal
+    }
+
+    function showToast(title, message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        let icon = '🔔';
+        if (title === 'Ready') icon = '✅';
+        if (title === 'In Kitchen') icon = '👨‍🍳';
+        if (title === 'Processing') icon = '🔄';
+        if (type === 'error') icon = '❌';
+
+        toast.innerHTML = `
+            <div class="toast-icon">${icon}</div>
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                <div class="toast-msg">${message}</div>
+            </div>
+        `;
+
+        container.appendChild(toast);
+
+        // Remove after 4 seconds
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            toast.style.transition = 'all 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
     }
 </script>
 
