@@ -129,4 +129,13 @@ export class AppService {
     this.metrics.total_latency += latency;
     if (!success) this.metrics.failures++;
   }
+
+  kill() {
+    console.error("💀 CHAOS INITIATED: Shutting down Stock Service...");
+    // Delay slightly to allow the response to be sent back to the Admin UI
+    setTimeout(() => {
+      process.exit(1);
+    }, 500);
+    return { message: "Stock Service going down!" };
+  }
 }

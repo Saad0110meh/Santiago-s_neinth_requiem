@@ -5,6 +5,7 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 const PORT = process.env.PORT || 3003;
 
 // Corrected Service Names for Docker Network
@@ -28,6 +29,7 @@ async function connectRedis() {
     redisClient = redis.createClient({ url: REDIS_URL });
     redisClient.on('error', (err) => console.error('Redis Error:', err));
     await redisClient.connect();
+
     console.log("Kitchen connected to Redis. Waiting for orders...");
     processQueue();
 }
@@ -80,7 +82,7 @@ async function processOrder(order) {
         }).catch(err => console.error("Failed to notify hub (Processing):", err.message));
 
         // Simulation: Retrieval time (faster than cooking)
-        const processingTime = Math.floor(Math.random() * 2000) + 1000; 
+        const processingTime = Math.floor(Math.random() * 4000) + 3000; // 3-7 seconds
         await new Promise(resolve => setTimeout(resolve, processingTime));
 
         // Metrics Update
@@ -127,8 +129,16 @@ app.get('/health', async (req, res) => {
     }
 });
 
+app.post('/api/kill', (req, res) => {
+    console.error("💀 CHAOS INITIATED: Shutting down Kitchen Queue...");
+    res.status(200).json({ message: "Kitchen Queue going down!" });
+    setTimeout(() => {
+        process.exit(1);
+    }, 500);
+});
+
 if (require.main === module) {
-    connectRedis();
+    connectRedis().catch(err => console.error("Failed to connect to Redis:", err));
     app.listen(PORT, () => {
         console.log(`Kitchen Queue service running on port ${PORT}`);
     });

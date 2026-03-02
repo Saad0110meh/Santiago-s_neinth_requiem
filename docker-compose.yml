@@ -61,7 +61,7 @@ services:
       redis:    { condition: service_healthy }
     networks:
       - cafeteria-net
-    restart: unless-stopped
+    restart: "no"
 
   order-gateway:
     build: ./services/order-gateway
@@ -80,7 +80,7 @@ services:
       stock-service:     { condition: service_started }
     networks: 
       - cafeteria-net
-    restart: unless-stopped
+    restart: "no"
 
   stock-service:
     build: ./services/stock-service
@@ -95,7 +95,7 @@ services:
       postgres: { condition: service_healthy }
     networks:
       - cafeteria-net
-    restart: unless-stopped
+    restart: "no"
 
   kitchen-queue:
     build: ./services/kitchen-queue
@@ -106,12 +106,13 @@ services:
       - REDIS_URL=redis://redis:6379
       - NOTIFICATION_URL=http://notification-hub:3004
       - STOCK_SERVICE_URL=http://stock-service:3002
+      - JWT_SECRET=devsprint-super-secret-2026
       - PORT=3003
     depends_on:
       redis: { condition: service_healthy }
     networks: 
       - cafeteria-net
-    restart: unless-stopped
+    restart: "no"
 
   notification-hub:
     build: ./services/notification-hub
@@ -125,7 +126,7 @@ services:
       redis: { condition: service_healthy }
     networks: 
       - cafeteria-net
-    restart: unless-stopped
+    restart: "no"
 
   # ─── FRONTEND ───────────────────────────────────────────────────────────────
   frontend:

@@ -41,4 +41,10 @@ export class AppController {
   async reduce(@Body() body: { item_id: number, quantity: number, order_id?: string }) {
     return this.appService.checkAndReduceStock(body.item_id, body.quantity, body.order_id);
   }
+
+  
+  @Post('api/kill')
+  kill() {
+    return this.appService.kill();
+  }
 }

@@ -321,7 +321,7 @@
             for (const service of services) {
                 const statusBadge = document.getElementById(`status-${service.id}`);
                 try {
-                    const response = await fetch(service.url);
+                    const response = await fetch(service.url + '?t=' + Date.now());
                     if (response.ok) {
                         statusBadge.className = 'status-dot status-up';
                     } else {
@@ -364,6 +364,7 @@
                     </div>
                     <canvas id="stock-chart" width="600" height="175"></canvas>
                     <div style="text-align:center; margin-top:10px; font-size:12px; color:#10b981">● Processing Latency (ms)</div>
+                    <button class="chaos-btn" onclick="triggerChaos('stock')">☠️ KILL STOCK SERVICE</button>
                 `;
             } else if (selectedServiceId === 'identity') {
               container.innerHTML = `
@@ -385,6 +386,7 @@
                     </div>
                     <canvas id="kitchen-chart" width="600" height="175"></canvas>
                     <div style="text-align:center; margin-top:10px; font-size:12px; color:#f59e0b">● Processing Duration (ms)</div>
+                    <button class="chaos-btn" onclick="triggerChaos('kitchen')">☠️ KILL KITCHEN QUEUE</button>
                 `;
             } else if (selectedServiceId === 'notification') {
                 container.innerHTML = `
@@ -578,18 +580,29 @@
         }
 
         async function triggerChaos(serviceName) {
-            if (serviceName === 'gateway') {
-                const btn = document.querySelector('.chaos-btn');
-                if(btn) btn.innerText = "💥 CRASHING...";
-                try {
-                    await fetch('http://localhost:3000/api/kill', { 
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${adminToken}` }
-                    });
-                } catch (e) {
-                    console.log("Service terminated.");
-                }
+            const service = services.find(s => s.id === serviceName);
+            if (!service) return;
+
+            const btn = document.querySelector('#metrics-container .chaos-btn');
+            if(btn) {
+                btn.innerText = "💥 CRASHING...";
+                btn.disabled = true;
             }
+
+            const baseUrl = service.url.replace('/health', '');
+
+            try {
+                await fetch(`${baseUrl}/api/kill`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                if(btn) btn.innerText = "💀 SERVICE DEAD";
+            } catch (e) {
+                console.log(`Service ${serviceName} terminated.`);
+                if(btn) btn.innerText = "💀 SERVICE DEAD";
+            }
+            
+            setTimeout(checkHealth, 1000);
         }
 
         // --- Stock Management Functions ---

@@ -184,7 +184,7 @@ app.get('/health', async (req, res) => {
 });
 
 // Chaos Toggle
-app.post('/api/kill', (req, res) => {
+app.post('/api/kill', authenticateToken, (req, res) => {
     console.error("💀 CHAOS INITIATED: Shutting down Gateway...");
     res.status(200).json({ message: "Gateway going down!" });
     setTimeout(() => {
