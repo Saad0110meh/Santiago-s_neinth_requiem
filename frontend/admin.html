@@ -170,7 +170,7 @@
             { id: 'gateway', name: 'Order Gateway', url: 'http://localhost:3000/health', metricsUrl: 'http://localhost:3000/metrics' },
             { id: 'identity', name: 'Identity Provider', url: 'http://localhost:3001/health' },
             { id: 'stock', name: 'Stock Service', url: 'http://localhost:3002/health', metricsUrl: 'http://localhost:3002/metrics' },
-            { id: 'kitchen', name: 'Kitchen Queue', url: 'http://localhost:3003/health' },
+            { id: 'kitchen', name: 'Kitchen Queue', url: 'http://localhost:3003/health', metricsUrl: 'http://localhost:3003/metrics' },
             { id: 'notification', name: 'Notification Hub', url: 'http://localhost:3004/health' }
         ];
 
@@ -184,7 +184,8 @@
                 forwarded: new Array(30).fill(0),
                 lastRejectionsTotal: 0,
                 lastForwardedTotal: 0
-            }
+            },
+            kitchen: { cookingTime: new Array(30).fill(0) }
         };
 
         // Initialize Sidebar
@@ -257,6 +258,17 @@
                     <canvas id="stock-chart" width="600" height="250"></canvas>
                     <div style="text-align:center; margin-top:10px; font-size:12px; color:#10b981">● Processing Latency (ms)</div>
                 `;
+            } else if (selectedServiceId === 'kitchen') {
+                container.innerHTML = `
+                    <div class="metrics-grid">
+                        <div class="metric-box"><div class="metric-value" id="kc-orders">--</div><div class="metric-label">Total Orders</div></div>
+                        <div class="metric-box"><div class="metric-value" id="kc-status">--</div><div class="metric-label">Chef Status</div></div>
+                        <div class="metric-box"><div class="metric-value" id="kc-avg">--</div><div class="metric-label">Avg Cook Time</div></div>
+                        <div class="metric-box"><div class="metric-value" id="kc-burned" style="color:#ef4444">--</div><div class="metric-label">Burned Meals 🔥</div></div>
+                    </div>
+                    <canvas id="kitchen-chart" width="600" height="250"></canvas>
+                    <div style="text-align:center; margin-top:10px; font-size:12px; color:#f59e0b">● Cooking Duration (ms)</div>
+                `;
             } else {
                 container.innerHTML = `
                     <div class="metrics-grid">
@@ -309,6 +321,22 @@
                         if (history.gateway.forwarded.length > 30) history.gateway.forwarded.shift();
                         
                         drawGatewayChart();
+                    }
+                } catch (e) {}
+            }
+            else if (selectedServiceId === 'kitchen') {
+                try {
+                    const res = await fetch('http://localhost:3003/metrics');
+                    if (res.ok) {
+                        const data = await res.json();
+                        document.getElementById('kc-orders').innerText = data.total_orders;
+                        document.getElementById('kc-status').innerText = data.active_orders > 0 ? "👨‍🍳 COOKING" : "💤 IDLE";
+                        document.getElementById('kc-avg').innerText = (data.average_cooking_time_ms || 0) + 'ms';
+                        document.getElementById('kc-burned').innerText = data.burned_meals;
+
+                        history.kitchen.cookingTime.push(data.average_cooking_time_ms || 0);
+                        if (history.kitchen.cookingTime.length > 30) history.kitchen.cookingTime.shift();
+                        drawKitchenChart();
                     }
                 } catch (e) {}
             }
@@ -369,6 +397,29 @@
             ctx.beginPath();
             fwdData.forEach((val, i) => {
                 const x = (i / (fwdData.length - 1)) * w;
+                const y = h - ((val / maxVal) * h);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        function drawKitchenChart() {
+            const canvas = document.getElementById('kitchen-chart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const data = history.kitchen.cookingTime;
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.strokeStyle = '#f59e0b'; // Orange for cooking
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const maxVal = Math.max(...data, 1000) * 1.2; 
+
+            data.forEach((val, i) => {
+                const x = (i / (data.length - 1)) * w;
                 const y = h - ((val / maxVal) * h);
                 if (i === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);

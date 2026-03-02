@@ -4,11 +4,17 @@
   "description": "Async order processor for IUT Cafeteria",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "jest"
   },
   "dependencies": {
     "express": "^4.18.2",
     "redis": "^4.6.10",
-    "axios": "^1.6.2"
+    "axios": "^1.6.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
   }
 }
