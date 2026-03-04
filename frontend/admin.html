@@ -6,6 +6,7 @@
     <title>DevSprint 2026 - Admin Command Center</title>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="config.js"></script>
     <style>
         body {
             background-color: #0f172a;
@@ -273,17 +274,11 @@
 
     <script>
         const services = [
-            { id: 'gateway', name: 'Order Gateway', url: 'http://localhost:3000/health', metricsUrl: 'http://localhost:3000/metrics' },
-            { id: 'identity', name: 'Identity Provider', url: 'http://localhost:3001/health' },
-            { id: 'stock', name: 'Stock Service', url: 'http://localhost:3002/health', metricsUrl: 'http://localhost:3002/metrics' },
-            { id: 'kitchen',
-              name: 'Kitchen Queue',
-              url: 'http://localhost:3003/health',
-              metricsUrl: 'http://localhost:3003/metrics'
-            },
-
-
-            { id: 'notification', name: 'Notification Hub', url: 'http://localhost:3004/health', metricsUrl: 'http://localhost:3004/metrics' }
+            { id: 'gateway', name: 'Order Gateway', url: `${CONFIG.GATEWAY_URL}/health`, metricsUrl: `${CONFIG.GATEWAY_URL}/metrics` },
+            { id: 'identity', name: 'Identity Provider', url: `${CONFIG.IDENTITY_URL}/health`, metricsUrl: `${CONFIG.IDENTITY_URL}/metrics` },
+            { id: 'stock', name: 'Stock Service', url: `${CONFIG.STOCK_URL}/health`, metricsUrl: `${CONFIG.STOCK_URL}/metrics` },
+            { id: 'kitchen', name: 'Kitchen Queue', url: `${CONFIG.KITCHEN_URL}/health`, metricsUrl: `${CONFIG.KITCHEN_URL}/metrics` },
+            { id: 'notification', name: 'Notification Hub', url: `${CONFIG.NOTIFICATION_URL}/health`, metricsUrl: `${CONFIG.NOTIFICATION_URL}/metrics` }
         ];
 
         let selectedServiceId = 'gateway';
@@ -421,7 +416,7 @@
         async function updateMetrics() {
             if (selectedServiceId === 'stock') {
                 try {
-                    const res = await fetch('http://localhost:3002/metrics');
+                    const res = await fetch(`${CONFIG.STOCK_URL}/metrics`);
                     if (res.ok) {
                         const data = await res.json();
                         document.getElementById('st-orders').innerText = data.total_orders;
@@ -436,7 +431,7 @@
             } 
             else if (selectedServiceId === 'identity') {
               try {
-                  const res = await fetch('http://localhost:3001/metrics');
+                  const res = await fetch(`${CONFIG.IDENTITY_URL}/metrics`);
                   if (res.ok) {
                       const data = await res.json();
                       document.getElementById('id-total').innerText = data.total_requests;
@@ -449,7 +444,7 @@
               }
           } else if (selectedServiceId === 'gateway') {
                 try {
-                    const res = await fetch('http://localhost:3000/metrics');
+                    const res = await fetch(`${CONFIG.GATEWAY_URL}/metrics`);
                     if (res.ok) {
                         const data = await res.json();
                         document.getElementById('gw-orders').innerText = data.total_orders;
@@ -476,7 +471,7 @@
             }
             else if (selectedServiceId === 'kitchen') {
                 try {
-                    const res = await fetch('http://localhost:3003/metrics');
+                    const res = await fetch(`${CONFIG.KITCHEN_URL}/metrics`);
                     if (res.ok) {
                         const data = await res.json();
                         document.getElementById('kc-orders').innerText = data.total_orders;
@@ -492,7 +487,7 @@
             }
             else if (selectedServiceId === 'notification') {
                 try {
-                    const res = await fetch('http://localhost:3004/metrics');
+                    const res = await fetch(`${CONFIG.NOTIFICATION_URL}/metrics`);
                     if (res.ok) {
                         const data = await res.json();
                         document.getElementById('nh-clients').innerText = data.connected_clients;
@@ -645,7 +640,7 @@
         // To keep it simple for the judges/demo, we will hit the Stock Service directly (Port 3002) 
         // which we enabled CORS for earlier.
 
-        const GATEWAY_API = 'http://localhost:3000/api'; 
+        const GATEWAY_API = `${CONFIG.GATEWAY_URL}/api`; 
 
         const ITEM_ICONS = {
             1: '🍛', // Beef Tehari
@@ -726,7 +721,7 @@
         }
 
         // --- Notification Logic ---
-        const socket = io('http://localhost:3004');
+        const socket = io(CONFIG.NOTIFICATION_URL);
         const notifFeed = document.getElementById('notification-feed');
         let notifCount = 0;
 
@@ -767,7 +762,7 @@
             errorDiv.innerText = '';
 
             try {
-                const res = await fetch('http://localhost:3001/login', {
+                const res = await fetch(`${CONFIG.IDENTITY_URL}/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ student_id: adminId })

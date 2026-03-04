@@ -6,7 +6,8 @@ const cors = require('cors');
 const crypto = require('crypto');
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:8080' }));
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:8080';
+app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;

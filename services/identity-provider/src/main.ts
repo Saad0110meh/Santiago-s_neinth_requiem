@@ -5,13 +5,14 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:8080';
   app.enableCors({
     // Trust the new Docker port and the local dev port
-    origin: ['http://localhost:8080', 'http://127.0.0.1:8080', 'http://localhost:5173'],
+    origin: corsOrigin,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
   
-  await app.listen(3001);
+  await app.listen(process.env.PORT || 3001);
 }
 bootstrap();

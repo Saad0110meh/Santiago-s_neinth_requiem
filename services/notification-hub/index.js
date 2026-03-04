@@ -6,7 +6,8 @@ const cors = require('cors');
 const app = express();
 // NEW: Middleware to parse incoming JSON from the Kitchen
 app.use(express.json());
-app.use(cors());
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:8080";
+app.use(cors({ origin: CORS_ORIGIN }));
 
 // Metrics
 const metrics = {
@@ -17,7 +18,10 @@ const metrics = {
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*' }
+  cors: {
+    origin: CORS_ORIGIN,
+    methods: ["GET", "POST"]
+  }
 });
 
 const PORT = process.env.PORT || 3004;
